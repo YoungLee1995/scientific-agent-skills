@@ -1,7 +1,7 @@
 ssh -T git@github-personal
 git add .
-git commit -m "skills: add literature-archive skills"
-git push -u origin main
+git commit -m "feat: add literature method extraction workflow"
+git push
 
 git remote set-url origin git@github-personal:YoungLee1995/scientific-agent-skills.git
 git config --local user.name "YoungLee1995"

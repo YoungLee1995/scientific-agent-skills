@@ -172,7 +172,43 @@ python skills/literature-archive/scripts/literature_archive.py \
 python tests/run_all.py --isolated literature-archive
 ```
 
-## 7. 本地开发与维护技能
+## 7. 数据分析方法提取 CLI 与 GUI
+
+`literature-method-extraction` 将长期归档扩展为“指定领域论文的数据分析方法调研”。它先运行 `literature-archive`，然后只对有 PMCID 的 Europe PMC 开放 JATS 全文读取标有 Methods 的章节，提取数据与研究设计、预处理、分析、统计、验证和软件等证据句。它不会把摘要、题目或无法解析的 PDF 当作方法学证据。
+
+执行完整 CLI 流程：
+
+```bash
+python skills/literature-method-extraction/scripts/literature_methods.py run \
+  --archive-config research/method-survey/archive.json \
+  --output research/method-survey/methods.csv
+```
+
+首次运行建议增加 `--limit 25`。后续仅处理现有归档时使用 `--skip-archive`；重新抓取已有全文时使用 `--refresh`。CSV 会同时保留论文标识、提取状态、JSON 结构化证据、原文 Methods 摘录、来源 URL 与人工复核状态。
+
+启动本地 GUI：
+
+```bash
+python skills/literature-method-extraction/scripts/literature_methods_gui.py \
+  --archive-config research/method-survey/archive.json
+```
+
+浏览器打开终端输出的 `http://127.0.0.1:8765`。界面提供全流程运行、仅提取本地归档、方法证据浏览以及 `pending`、`accepted`、`revised`、`rejected` 四种复核状态。它只绑定本机回环地址；正式汇总前应人工核对证据句与来源全文。
+
+需要向同事发放单文件启动器时，在专用打包环境执行：
+
+```bash
+uv tool run pyinstaller --onefile --name literature-methods \
+  skills/literature-method-extraction/scripts/literature_methods_gui.py
+```
+
+打包产物仍须配套提供不含凭据的配置模板，且由使用者填写本地数据路径。测试命令：
+
+```bash
+python tests/run_all.py --isolated literature-method-extraction
+```
+
+## 8. 本地开发与维护技能
 
 ### 新建或修改
 
@@ -245,7 +281,7 @@ uv run skill-scanner scan skills/<name> --use-behavioral
 
 扫描发现必须结合实际代码验证。读取自身 API 密钥后访问其所属服务、普通 `subprocess` 用法，或标识符中偶然包含 `eval`/`exec` 字样，都可能产生已知类型的误报。不要为消除告警而破坏正确实现。
 
-## 8. 常见问题
+## 9. 常见问题
 
 **Agent 没有发现技能**：确认安装位置是该 Agent 的扫描路径；插件方式要求根目录同时有 `plugin.json` 和 `skills/`；每个技能必须是 `skills/` 的直接子目录且含有 `SKILL.md`。
 

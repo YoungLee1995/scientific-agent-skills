@@ -72,6 +72,7 @@ flowchart TB
 | `skills/<name>/scripts/` | 可复用的 CLI、校验器或工作流工具 | 按需执行 |
 | `skills/<name>/assets/` | 模板、静态资源、示例辅助文件 | 按需 |
 | `skills/literature-archive/` | 可配置的长期文献归档：OpenAlex/Europe PMC 检索、标识符去重、OA PDF 校验下载、本地 SQLite 审计记录 | 是，按需 |
+| `skills/literature-method-extraction/` | 在本地归档之上提取 Europe PMC 开放 JATS 全文的分析方法证据，提供 CLI、CSV 导出和本地复核 GUI | 是，按需 |
 | `tests/<name>/` | 与技能同名的脚本行为测试及 fixtures；不进入技能包 | 否 |
 | `tests/_contract/` | 共享的结构、CLI、办公文档等测试工具 | 否 |
 | `tests/_meta/` | 跨所有技能的仓库级结构与覆盖率守卫 | 否 |
@@ -118,6 +119,8 @@ tests/<skill-name>/       # 仅当技能有 scripts/ 时必须存在
 `literature-archive` 将“定期检索”明确放在技能脚本和仓库外运行数据之间：JSON 配置描述主题、来源、结果上限和本地路径；脚本将运行记录、检索计数、来源记录、去重后的元数据及下载状态写入 SQLite，把 PDF 写入单独目录。它使用 DOI、PMID、PMCID、arXiv ID 等稳定标识优先去重，并以锁文件防止调度器的并发运行。
 
 该扩展不是一个常驻云服务。cron 或 systemd timer 等宿主调度器负责触发；OpenAlex 和 Europe PMC 负责文献发现；仅 OpenAlex 或可选 Unpaywall 明确给出的开放获取 PDF URL 才会下载。下载前检查 HTTP(S) 地址、响应内容类型、文件头和配置的字节上限，失败状态保存在数据库中而不会把 HTML 错页当作 PDF 归档。
+
+其下游 `literature-method-extraction` 是面向同事交付的应用层：CLI 编排“归档 -> JATS Methods 获取 -> 词法证据提取 -> CSV 导出”，本地 Web GUI 则只启动该 CLI、读取 SQLite、展示方法证据和保存复核状态。GUI 仅监听 `127.0.0.1`，不将论文或本地数据库暴露成网络服务。JATS 缺失时记录 `unavailable`，不会从摘要或 PDF 元数据臆测方法。
 
 ### 规范和结构
 
