@@ -131,7 +131,48 @@ sed -n '1,160p' skills/scanpy/SKILL.md
 
 第一条命令列出技能名称；第二条用 Scanpy 作为示例查看一个技能的元数据、安装说明和工作流。也可以浏览 [技能目录](skills.md)，它按研究领域列出技能及用途。
 
-## 6. 本地开发与维护技能
+## 6. 长期自动化文献库
+
+仓库新增 `literature-archive`，用于建立可审计的本地 SQLite 文献库。它不是通用网页爬虫：每次运行仅查询 OpenAlex 与 Europe PMC，优先以 DOI、PMID、PMCID、arXiv ID 去重；仅下载被 OpenAlex 或可选 Unpaywall 标记为开放获取的 PDF，并验证内容类型、PDF 文件头与大小限制。
+
+初始化一个运行目录：
+
+```bash
+mkdir -p research/literature-archive
+cp skills/literature-archive/assets/config.example.json \
+  research/literature-archive/config.json
+```
+
+编辑 `config.json` 中的绝对路径和 `queries`。先离线检查配置：
+
+```bash
+python skills/literature-archive/scripts/literature_archive.py \
+  --config research/literature-archive/config.json --dry-run
+```
+
+确认后执行一次真实归档：
+
+```bash
+UNPAYWALL_EMAIL='researcher@example.org' \
+python skills/literature-archive/scripts/literature_archive.py \
+  --config research/literature-archive/config.json
+```
+
+`UNPAYWALL_EMAIL` 是可选项，用于为 DOI 记录补充开放 PDF 地址；不得写入 JSON 或提交到仓库。运行摘要会输出到标准输出，SQLite 数据库记录每次检索的计数、来源失败、元数据、去重关系及下载状态。PDF 和数据库位于 `skills/` 外，避免混入 Agent 的技能上下文。
+
+在手工运行且检查结果后，才使用宿主调度器。以下 cron 样例每天 03:15 执行；请替换为已验证的绝对路径，并通过系统环境文件或秘密管理器传入邮箱，而不是把凭据写入 crontab：
+
+```cron
+15 3 * * * /usr/bin/python3 /absolute/path/to/scientific-agent-skills/skills/literature-archive/scripts/literature_archive.py --config /absolute/path/research/literature-archive/config.json >> /absolute/path/research/literature-archive/archive.log 2>&1
+```
+
+脚本使用锁文件阻止重叠运行；当所有配置来源都失败时返回非零。可用以下命令测试该技能：
+
+```bash
+python tests/run_all.py --isolated literature-archive
+```
+
+## 7. 本地开发与维护技能
 
 ### 新建或修改
 
@@ -204,7 +245,7 @@ uv run skill-scanner scan skills/<name> --use-behavioral
 
 扫描发现必须结合实际代码验证。读取自身 API 密钥后访问其所属服务、普通 `subprocess` 用法，或标识符中偶然包含 `eval`/`exec` 字样，都可能产生已知类型的误报。不要为消除告警而破坏正确实现。
 
-## 7. 常见问题
+## 8. 常见问题
 
 **Agent 没有发现技能**：确认安装位置是该 Agent 的扫描路径；插件方式要求根目录同时有 `plugin.json` 和 `skills/`；每个技能必须是 `skills/` 的直接子目录且含有 `SKILL.md`。
 

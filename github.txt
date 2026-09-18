@@ -1,4 +1,8 @@
 ssh -T git@github-personal
 git add .
-git commit -m "docs: add Chinese architecture and usage guides"
+git commit -m "skills: add literature-archive skills"
 git push -u origin main
+
+git remote set-url origin git@github-personal:YoungLee1995/scientific-agent-skills.git
+git config --local user.name "YoungLee1995"
+git config --local user.email "948231014@qq.com"
