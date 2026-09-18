@@ -1,0 +1,4 @@
+ssh -T git@github-personal
+git add .
+git commit -m "docs: add Chinese architecture and usage guides"
+git push -u origin main
