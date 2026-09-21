@@ -1,4 +1,4 @@
-ssh -T git@github-personal
+ssh -T git@github.com
 git add .
 git commit -m "feat: add literature method extraction workflow"
 git push
