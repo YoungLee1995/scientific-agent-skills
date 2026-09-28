@@ -1,6 +1,6 @@
 ssh -T git@github.com
 git add .
-git commit -m "feat: add literature method extraction workflow"
+git commit -m "更新面试文档"
 git push
 
 git remote set-url origin git@github-personal:YoungLee1995/scientific-agent-skills.git
