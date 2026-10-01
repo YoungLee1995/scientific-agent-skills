@@ -28,6 +28,9 @@ uv.lock
 data/inbox/
 data/quarantine/
 artifacts/
+lab-agent/data/inbox/
+lab-agent/data/quarantine/
+lab-agent/artifacts/
 __pycache__/
 
 # Frontend working files (keep package and build configuration tracked)
