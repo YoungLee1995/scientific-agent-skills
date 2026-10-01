@@ -31,6 +31,7 @@ artifacts/
 lab-agent/data/inbox/
 lab-agent/data/quarantine/
 lab-agent/artifacts/
+lab-agent/data/local-archive/
 __pycache__/
 
 # Frontend working files (keep package and build configuration tracked)

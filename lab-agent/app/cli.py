@@ -11,6 +11,7 @@ import psycopg
 from dotenv import load_dotenv
 
 from app.services.ingestion import download_open_access_articles, ingest_jats_xml
+from app.services.local_archive import LocalArchive
 
 
 def connection() -> psycopg.Connection:
@@ -76,6 +77,31 @@ def list_documents(args: argparse.Namespace) -> None:
             print("\t".join(str(value) for value in row))
 
 
+def local_ingest(args: argparse.Namespace) -> None:
+    result = LocalArchive(Path(args.archive)).ingest(
+        Path(args.source), args.project, args.allowed_role, args.classification
+    )
+    print(f"{result.document_id} {result.state} chunks={result.chunk_count}")
+
+
+def local_documents(args: argparse.Namespace) -> None:
+    for document in LocalArchive(Path(args.archive)).list_documents(args.project):
+        print("\t".join(str(value) for value in document.values()))
+
+
+def local_search(args: argparse.Namespace) -> None:
+    results = LocalArchive(Path(args.archive)).search(
+        args.project, args.role, args.query, args.limit
+    )
+    for result in results:
+        print(result["id"], result["title"], result["text"], sep="\t")
+
+
+def local_errors(args: argparse.Namespace) -> None:
+    for error in LocalArchive(Path(args.archive)).list_errors():
+        print("\t".join(str(value) for value in error.values()))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -115,6 +141,33 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser = document_commands.add_parser("list")
     list_parser.add_argument("--project", required=True)
     list_parser.set_defaults(handler=list_documents)
+
+    local = commands.add_parser("local", help="offline SQLite archive commands")
+    local_commands = local.add_subparsers(dest="local_command", required=True)
+    local_ingest_parser = local_commands.add_parser("ingest")
+    local_ingest_parser.add_argument("--archive", default="data/local-archive")
+    local_ingest_parser.add_argument("--project", required=True)
+    local_ingest_parser.add_argument("--source", required=True)
+    local_ingest_parser.add_argument("--classification", default="internal-research")
+    local_ingest_parser.add_argument("--allowed-role", action="append", required=True)
+    local_ingest_parser.set_defaults(handler=local_ingest)
+
+    local_list_parser = local_commands.add_parser("list")
+    local_list_parser.add_argument("--archive", default="data/local-archive")
+    local_list_parser.add_argument("--project", required=True)
+    local_list_parser.set_defaults(handler=local_documents)
+
+    local_search_parser = local_commands.add_parser("search")
+    local_search_parser.add_argument("--archive", default="data/local-archive")
+    local_search_parser.add_argument("--project", required=True)
+    local_search_parser.add_argument("--role", action="append", required=True)
+    local_search_parser.add_argument("--query", required=True)
+    local_search_parser.add_argument("--limit", type=int, default=10)
+    local_search_parser.set_defaults(handler=local_search)
+
+    local_errors_parser = local_commands.add_parser("errors")
+    local_errors_parser.add_argument("--archive", default="data/local-archive")
+    local_errors_parser.set_defaults(handler=local_errors)
     return parser
 
 
