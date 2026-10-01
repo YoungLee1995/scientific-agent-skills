@@ -117,6 +117,16 @@ def local_query(args: argparse.Namespace) -> None:
     print(answer.model_dump_json())
 
 
+def release_check(args: argparse.Namespace) -> None:
+    from app.release_check import run_release_checks
+
+    result = run_release_checks(Path(args.eval_file))
+    for name, status in result.items():
+        print(f"{name}\t{status}")
+    if any(status != "pass" for status in result.values()):
+        raise SystemExit(1)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -198,6 +208,12 @@ def build_parser() -> argparse.ArgumentParser:
     local_query_parser.add_argument("--project", required=True)
     local_query_parser.add_argument("--question", required=True)
     local_query_parser.set_defaults(handler=local_query)
+
+    release = commands.add_parser(
+        "release-check", help="run local Chapter 9 release gates"
+    )
+    release.add_argument("--eval-file", default="tests/evals/knowledge_cases.jsonl")
+    release.set_defaults(handler=release_check)
     return parser
 
 
