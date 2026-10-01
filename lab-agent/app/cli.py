@@ -11,6 +11,7 @@ import psycopg
 from dotenv import load_dotenv
 
 from app.services.ingestion import download_open_access_articles, ingest_jats_xml
+from app.services.knowledge import KnowledgeService
 from app.services.local_archive import LocalArchive
 
 
@@ -102,6 +103,20 @@ def local_errors(args: argparse.Namespace) -> None:
         print("\t".join(str(value) for value in error.values()))
 
 
+def local_grant_role(args: argparse.Namespace) -> None:
+    LocalArchive(Path(args.archive)).grant_role(
+        args.user_id, args.project, args.role, args.display_name
+    )
+    print("granted")
+
+
+def local_query(args: argparse.Namespace) -> None:
+    answer = KnowledgeService(LocalArchive(Path(args.archive))).answer_question(
+        args.user_id, args.question, args.project
+    )
+    print(answer.model_dump_json())
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -168,6 +183,21 @@ def build_parser() -> argparse.ArgumentParser:
     local_errors_parser = local_commands.add_parser("errors")
     local_errors_parser.add_argument("--archive", default="data/local-archive")
     local_errors_parser.set_defaults(handler=local_errors)
+
+    local_grant_parser = local_commands.add_parser("grant-role")
+    local_grant_parser.add_argument("--archive", default="data/local-archive")
+    local_grant_parser.add_argument("--user-id", required=True)
+    local_grant_parser.add_argument("--display-name")
+    local_grant_parser.add_argument("--project", required=True)
+    local_grant_parser.add_argument("--role", required=True)
+    local_grant_parser.set_defaults(handler=local_grant_role)
+
+    local_query_parser = local_commands.add_parser("query")
+    local_query_parser.add_argument("--archive", default="data/local-archive")
+    local_query_parser.add_argument("--user-id", required=True)
+    local_query_parser.add_argument("--project", required=True)
+    local_query_parser.add_argument("--question", required=True)
+    local_query_parser.set_defaults(handler=local_query)
     return parser
 
 

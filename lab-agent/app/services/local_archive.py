@@ -82,6 +82,14 @@ class LocalArchive:
                 CREATE TABLE IF NOT EXISTS projects (
                     id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE
                 );
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY, display_name TEXT NOT NULL, active INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS user_roles (
+                    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    role_name TEXT NOT NULL, UNIQUE(user_id, project_id, role_name)
+                );
                 CREATE TABLE IF NOT EXISTS documents (
                     id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
                     type TEXT NOT NULL, title TEXT NOT NULL, version TEXT NOT NULL,
@@ -207,6 +215,31 @@ class LocalArchive:
                 )
             ]
 
+    def grant_role(
+        self,
+        user_id: str,
+        project_name: str,
+        role_name: str,
+        display_name: str | None = None,
+    ) -> None:
+        """Create/update a local user and grant a project-scoped role."""
+        self.initialize()
+        with self._connect() as connection:
+            project_id = self._project(connection, project_name)
+            connection.execute(
+                """INSERT INTO users (id, display_name, active) VALUES (?, ?, 1)
+                   ON CONFLICT(id) DO UPDATE SET display_name = excluded.display_name""",
+                (user_id, display_name or user_id),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO user_roles VALUES (?, ?, ?)",
+                (user_id, project_id, role_name),
+            )
+
+    def deactivate_user(self, user_id: str) -> None:
+        with self._connect() as connection:
+            connection.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
+
     def search(
         self, project_name: str, roles: Iterable[str], query: str, limit: int = 10
     ) -> list[dict[str, Any]]:
@@ -227,6 +260,50 @@ class LocalArchive:
                 sql, (project_name, *role_list, f"%{query}%", limit)
             ).fetchall()
         return [{**dict(row), "metadata": json.loads(row["metadata"])} for row in rows]
+
+    def search_for_user(
+        self, user_id: str, project_name: str, query: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """Hybrid search with authorization embedded in the candidate SQL query."""
+        if not query.strip() or limit < 1:
+            return []
+        terms = [term.lower() for term in query.split() if term.strip()]
+        vector = hash_embedding(query)
+        sql = """
+            SELECT DISTINCT c.id, d.id AS document_id, d.title, c.text, c.embedding, c.metadata
+            FROM chunks c
+            JOIN documents d ON d.id = c.document_id
+            JOIN projects p ON p.id = d.project_id
+            JOIN document_acl acl ON acl.document_id = d.id AND acl.permission = 'read'
+            JOIN user_roles ur ON ur.project_id = p.id AND ur.role_name = acl.role_name
+            JOIN users u ON u.id = ur.user_id AND u.active = 1
+            WHERE u.id = ? AND p.name = ? AND d.status = 'effective'
+        """
+        with self._connect() as connection:
+            rows = connection.execute(sql, (user_id, project_name)).fetchall()
+        ranked: list[dict[str, Any]] = []
+        for row in rows:
+            text = row["text"]
+            keyword_score = sum(text.lower().count(term) for term in terms) / max(
+                len(terms), 1
+            )
+            stored_vector = json.loads(row["embedding"])
+            vector_score = sum(
+                left * right for left, right in zip(vector, stored_vector)
+            )
+            score = keyword_score + vector_score
+            if score > 0:
+                ranked.append(
+                    {
+                        "id": row["id"],
+                        "document_id": row["document_id"],
+                        "title": row["title"],
+                        "text": text,
+                        "metadata": json.loads(row["metadata"]),
+                        "score": round(score, 6),
+                    }
+                )
+        return sorted(ranked, key=lambda item: item["score"], reverse=True)[:limit]
 
     def list_errors(self) -> list[dict[str, str]]:
         with self._connect() as connection:
