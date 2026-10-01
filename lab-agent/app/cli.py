@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from app.services.ingestion import download_open_access_articles, ingest_jats_xml
 from app.services.knowledge import KnowledgeService
 from app.services.local_archive import LocalArchive
+from app.services.manuscript_workflow import ManuscriptWorkflow
 
 
 def connection() -> psycopg.Connection:
@@ -127,6 +128,54 @@ def release_check(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def workflow_create(args: argparse.Namespace) -> None:
+    workflow = ManuscriptWorkflow(Path(args.root), LocalArchive(Path(args.archive)))
+    print(
+        workflow.create(
+            args.user_id, args.project, args.question, max_steps=args.max_steps
+        )
+    )
+
+
+def workflow_plan(args: argparse.Namespace) -> None:
+    workflow = ManuscriptWorkflow(Path(args.root), LocalArchive(Path(args.archive)))
+    result = workflow.set_search_plan(
+        args.workflow_id,
+        {
+            "query": args.query,
+            "sources": ["local"],
+            "inclusion": args.inclusion,
+            "exclusion": args.exclusion,
+        },
+    )
+    print(result.state)
+
+
+def workflow_advance(args: argparse.Namespace) -> None:
+    workflow = ManuscriptWorkflow(Path(args.root), LocalArchive(Path(args.archive)))
+    if args.action == "approve-plan":
+        result = workflow.approve_search_plan(args.workflow_id, args.reviewer)
+    elif args.action == "retrieve":
+        result = workflow.retrieve(args.workflow_id)
+    elif args.action == "ingest":
+        result = workflow.ingest_retrieved(args.workflow_id)
+    elif args.action == "cards":
+        result = workflow.create_relevance_cards(args.workflow_id)
+    elif args.action == "evidence":
+        result = workflow.build_evidence_table(args.workflow_id)
+    elif args.action == "draft":
+        result = workflow.draft_manuscript(args.workflow_id)
+    elif args.action == "complete":
+        result = workflow.complete_human_review(
+            args.workflow_id, args.reviewer, args.approved
+        )
+    else:
+        raise ValueError("unknown workflow action")
+    print(result.state)
+    if args.action == "draft":
+        print(workflow.draft(args.workflow_id))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -214,6 +263,47 @@ def build_parser() -> argparse.ArgumentParser:
     )
     release.add_argument("--eval-file", default="tests/evals/knowledge_cases.jsonl")
     release.set_defaults(handler=release_check)
+
+    workflow = commands.add_parser(
+        "workflow", help="run the durable local manuscript workflow"
+    )
+    workflow_commands = workflow.add_subparsers(dest="workflow_command", required=True)
+    create = workflow_commands.add_parser("create")
+    create.add_argument("--root", default="data/workflows")
+    create.add_argument("--archive", default="data/local-archive")
+    create.add_argument("--user-id", required=True)
+    create.add_argument("--project", required=True)
+    create.add_argument("--question", required=True)
+    create.add_argument("--max-steps", type=int, default=10)
+    create.set_defaults(handler=workflow_create)
+    plan = workflow_commands.add_parser("plan")
+    plan.add_argument("--root", default="data/workflows")
+    plan.add_argument("--archive", default="data/local-archive")
+    plan.add_argument("--workflow-id", required=True)
+    plan.add_argument("--query", required=True)
+    plan.add_argument("--inclusion", action="append", required=True)
+    plan.add_argument("--exclusion", action="append", default=[])
+    plan.set_defaults(handler=workflow_plan)
+    advance = workflow_commands.add_parser("advance")
+    advance.add_argument("--root", default="data/workflows")
+    advance.add_argument("--archive", default="data/local-archive")
+    advance.add_argument("--workflow-id", required=True)
+    advance.add_argument(
+        "--action",
+        choices=[
+            "approve-plan",
+            "retrieve",
+            "ingest",
+            "cards",
+            "evidence",
+            "draft",
+            "complete",
+        ],
+        required=True,
+    )
+    advance.add_argument("--reviewer", default="")
+    advance.add_argument("--approved", action="store_true")
+    advance.set_defaults(handler=workflow_advance)
     return parser
 
 

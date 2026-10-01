@@ -314,6 +314,14 @@ class LocalArchive:
                 )
             ]
 
+    def document_identifiers(self, document_id: str) -> dict[str, str]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT kind, value FROM document_identifiers WHERE document_id = ?",
+                (document_id,),
+            ).fetchall()
+        return {row["kind"]: row["value"] for row in rows}
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
