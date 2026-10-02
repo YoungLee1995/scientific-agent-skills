@@ -240,6 +240,31 @@ class LocalArchive:
         with self._connect() as connection:
             connection.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
 
+    def user_context(self, user_id: str) -> dict[str, Any] | None:
+        """Return server-owned local identity data for the development API."""
+        self.initialize()
+        with self._connect() as connection:
+            user = connection.execute(
+                "SELECT id, display_name, active FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+            if not user or not user["active"]:
+                return None
+            rows = connection.execute(
+                """SELECT p.name, ur.role_name FROM user_roles ur
+                   JOIN projects p ON p.id = ur.project_id WHERE ur.user_id = ?
+                   ORDER BY p.name, ur.role_name""",
+                (user_id,),
+            ).fetchall()
+        project_roles: dict[str, list[str]] = {}
+        for row in rows:
+            project_roles.setdefault(row["name"], []).append(row["role_name"])
+        return {
+            "id": user["id"],
+            "display_name": user["display_name"],
+            "active": bool(user["active"]),
+            "project_roles": project_roles,
+        }
+
     def search(
         self, project_name: str, roles: Iterable[str], query: str, limit: int = 10
     ) -> list[dict[str, Any]]:

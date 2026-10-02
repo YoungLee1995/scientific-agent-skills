@@ -282,6 +282,46 @@ class LocalAdminAdapter:
                 "project_id": payload["project_id"],
             }
 
+    def list_tasks(self, user: dict[str, Any]) -> list[dict[str, Any]]:
+        """List only a requester's tasks, unless the caller is an administrator."""
+        self.initialize()
+        with self._connect() as connection:
+            if "admin" in user.get("roles", []):
+                rows = connection.execute(
+                    "SELECT id, requester_id, state, request_type FROM admin_tasks ORDER BY rowid DESC"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT id, requester_id, state, request_type FROM admin_tasks
+                       WHERE requester_id = ? ORDER BY rowid DESC""",
+                    (user["id"],),
+                ).fetchall()
+        return [dict(row) for row in rows]
+
+    def task(self, user: dict[str, Any], task_id: str) -> dict[str, Any]:
+        self.initialize()
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT id, requester_id, state, request_type, payload FROM admin_tasks WHERE id = ?",
+                (task_id,),
+            ).fetchone()
+        if not row or (
+            row["requester_id"] != user["id"] and "admin" not in user.get("roles", [])
+        ):
+            raise AdapterError("task is not visible to this user")
+        task = dict(row)
+        task["payload"] = json.loads(task["payload"])
+        return task
+
+    def cancel_task(self, user: dict[str, Any], task_id: str) -> dict[str, str]:
+        task = self.task(user, task_id)
+        if task["state"] != "pending_approval":
+            raise AdapterError("only pending approval tasks can be cancelled")
+        with self._connect() as connection:
+            connection.execute("UPDATE admin_tasks SET state = 'cancelled' WHERE id = ?", (task_id,))
+            self._audit(connection, "task.cancelled", user["id"], task_id, {})
+        return {"id": task_id, "state": "cancelled"}
+
     def _authorize(self, user: dict[str, Any], tool_name: str, project_id: str) -> None:
         if not can_execute_tool(user, tool_name, project_id):
             raise AdapterError("user is not authorized for this adapter operation")

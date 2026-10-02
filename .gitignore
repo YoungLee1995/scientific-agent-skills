@@ -32,23 +32,8 @@ lab-agent/data/inbox/
 lab-agent/data/quarantine/
 lab-agent/artifacts/
 lab-agent/data/local-archive/
+lab-agent/data/
 __pycache__/
-
-# Frontend working files (keep package and build configuration tracked)
-lab-agent/web/src/**/*.css
-lab-agent/web/src/**/*.scss
-lab-agent/web/src/**/*.sass
-lab-agent/web/src/**/*.less
-lab-agent/web/src/**/*.tsx
-lab-agent/web/src/assets/
-lab-agent/web/public/*.png
-lab-agent/web/public/*.jpg
-lab-agent/web/public/*.jpeg
-lab-agent/web/public/*.gif
-lab-agent/web/public/*.webp
-lab-agent/web/public/*.ico
-lab-agent/web/public/*.avif
-lab-agent/web/public/*.svg
 
 # Images and generated media
 *.png

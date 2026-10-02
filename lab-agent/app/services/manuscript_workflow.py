@@ -298,6 +298,16 @@ class ManuscriptWorkflow:
             ).fetchone()
         return row["content"] if row else None
 
+    def artifact_for_user(self, workflow_id: str, user_id: str) -> dict[str, str]:
+        """Return a draft only to the workflow owner for the local API."""
+        workflow = self._workflow(workflow_id)
+        if workflow["user_id"] != user_id:
+            raise WorkflowError("workflow is not visible to this user")
+        content = self.draft(workflow_id)
+        if content is None:
+            raise WorkflowError("workflow has no manuscript artifact yet")
+        return {"id": workflow_id, "kind": "manuscript_draft", "content": content}
+
     def _transition(
         self,
         workflow_id: str,

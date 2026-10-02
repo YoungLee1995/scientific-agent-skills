@@ -44,6 +44,9 @@ def test_workflow_persists_checkpoints_and_marks_todos(tmp_path: Path):
 
     assert workflow.resume(workflow_id).state == "human_review"
     assert "TODO" in workflow.draft(workflow_id)
+    assert workflow.artifact_for_user(workflow_id, "user-1")["kind"] == "manuscript_draft"
+    with pytest.raises(WorkflowError, match="not visible"):
+        workflow.artifact_for_user(workflow_id, "other-user")
     assert (
         workflow.complete_human_review(workflow_id, "pi-1", True).state == "completed"
     )

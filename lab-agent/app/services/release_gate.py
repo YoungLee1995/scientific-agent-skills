@@ -6,7 +6,7 @@ import hashlib
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -62,7 +62,7 @@ def validate_approval_commit(
         return False
     if task.get("draft_hash") != draft_hash:
         return False
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     valid: set[str] = set()
     for approval in approvals:
         if approval.get("decision") != "approved":
@@ -83,8 +83,8 @@ def validate_approval_commit(
 
 def _as_datetime(value: datetime | str) -> datetime:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    return datetime.fromisoformat(value)
 
 
 @dataclass

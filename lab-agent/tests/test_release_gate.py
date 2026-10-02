@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -31,7 +31,7 @@ def test_tool_arguments_reject_oversized_input():
 
 
 def test_approval_must_be_current_non_self_and_match_draft():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     task = {"state": "pending_approval", "requester_id": "student", "draft_hash": "v1"}
     approved = [
         {

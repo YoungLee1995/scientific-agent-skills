@@ -1,12 +1,12 @@
 [project]
 name = "lab-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local, ACL-first scientific laboratory agent learning application"
 readme = "README.md"
 authors = [
     { name = "cmchenmu", email = "cmchenmu@163.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.20.0",
     "beautifulsoup4>=4.15.0",
@@ -32,7 +32,7 @@ dependencies = [
 ]
 
 [project.scripts]
-lab-agent = "lab_agent:main"
+lab-agent = "app.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
