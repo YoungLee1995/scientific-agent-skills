@@ -128,6 +128,22 @@ def release_check(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def launch_report(args: argparse.Namespace) -> None:
+    from app.launch_report import build_report, render_markdown
+
+    project_root = Path(__file__).resolve().parents[1]
+    report = build_report(
+        project_root, Path(args.eval_file), run_commands=not args.skip_commands
+    )
+    Path(args.json_output).write_text(
+        __import__("json").dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    Path(args.markdown_output).write_text(render_markdown(report), encoding="utf-8")
+    print(render_markdown(report), end="")
+    if not report["ready"]:
+        raise SystemExit(1)
+
+
 def workflow_create(args: argparse.Namespace) -> None:
     workflow = ManuscriptWorkflow(Path(args.root), LocalArchive(Path(args.archive)))
     print(
@@ -263,6 +279,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     release.add_argument("--eval-file", default="tests/evals/knowledge_cases.jsonl")
     release.set_defaults(handler=release_check)
+
+    launch = commands.add_parser(
+        "launch-report", help="run Chapter 13 launch readiness checks"
+    )
+    launch.add_argument("--eval-file", default="tests/evals/knowledge_cases.jsonl")
+    launch.add_argument("--json-output", default="launch-readiness.json")
+    launch.add_argument("--markdown-output", default="launch-readiness.md")
+    launch.add_argument(
+        "--skip-commands",
+        action="store_true",
+        help="only run deterministic policy checks",
+    )
+    launch.set_defaults(handler=launch_report)
 
     workflow = commands.add_parser(
         "workflow", help="run the durable local manuscript workflow"
